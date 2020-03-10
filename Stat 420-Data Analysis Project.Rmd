@@ -1,0 +1,489 @@
+---
+title: 'Analysis Project: Indicators of Body Fat in Men'
+author: 'Spring 2018,  (NetID:  Justin Tolley (tigueto2)'
+date: 
+output:
+  html_document:
+    theme: readable
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+**(a)** 
+Title: Indicators of Body Fat in Men 
+
+**(b)** Group Members: Sajini Samuel, Bryan Ulziisaikhan, Neeca Penaflor, Justin Tolley 
+
+**(c)** Introduction section:
+
+-We thought this dataset would be interesting to use because it could possibly be used to predict a person’s body fat percentage using only a few simple 
+and easy to perform measurements
+
+- This data has 19 variables and 252 observations.  The response variable will be the amount of body fat in men. 
+The other variables would be the explanatory variables. Our project can determine which explanatory variables are best. 
+The data was supplied by Dr. A. Garth Fisher from The Human Performance Research Center at Brigham Young University.
+The body fat percentage was estimated using a type of  underwater weighing technique. 
+
+Source Link: http://ww2.amstat.org/publications/jse/datasets/fat.txt
+
+
+
+**(d)** Methods Section: 
+
+##Background:
+DESCRIPTIVE ABSTRACT:
+Percentage of body fat, age, weight, height, and ten body circumference
+measurements (e.g., abdomen) are recorded for 252 men.  Body fat, a
+measure of health, is estimated through an underwater weighing
+technique.  Fitting body fat to the other measurements using multiple
+regression provides a convenient way of estimating body fat for men
+using only a scale and a measuring tape.
+
+SOURCE:
+The data were generously supplied by Dr. A. Garth Fisher, Human
+Performance Research Center, Brigham Young University, Provo, Utah
+84602, who gave permission to freely distribute the data and use them
+for non-commercial purposes.  Reference to the data is made in Penrose,
+et al. (1985).
+
+VARIABLE DESCRIPTIONS:
+Columns
+
+`Case Number`
+
+ `Brozek`  - Percent body fat using Brozek's equation, 
+             457/Density - 414.2
+
+ `Siri`    - Percent body fat using Siri's equation, 
+             495/Density - 450
+
+ `Density` - Density (gm/cm^3)
+
+ `Age`     - Age (yrs)
+
+ `Weight`  - Weight (lbs)
+
+ `Height`  - Height (inches)
+
+ `Adip`    - Adiposity index = Weight/Height^2 (kg/m^2)
+
+ `FFW`     - Fat Free Weight 
+            = (1 - fraction of body fat) * Weight, 
+            using Brozek's formula (lbs)
+
+ `Neck`    - Neck circumference (cm)
+
+ `Chest`   - Chest circumference (cm)
+
+ `Abdomen` - Abdomen circumference (cm) "at the umbilicus and level with the iliac crest"
+
+ `Hip`     - Hip circumference (cm)
+
+ `Thigh`   - Thigh circumference (cm)
+
+ `Knee`    - Knee circumference (cm)
+
+ `Ankle`   - Ankle circumference (cm)
+
+ `Biceps`  - Extended biceps circumference (cm)
+
+ `Forearm` - Forearm circumference (cm)
+
+ `Wrist`   - Wrist circumference (cm) "distal to the 
+             styloid processes"
+
+```{r}
+url <- 'http://ww2.amstat.org/publications/jse/datasets/fat.dat.txt'
+bodyfat <- read.table(url, sep = "",header = FALSE)
+names(bodyfat) <- c("Case Number", "Brozek", "Siri", "Density", "Age", "Weight", "Height", "Adip", "FFW", "Neck", "Chest", "Abdomen", "Hip", "Thigh", "Knee", "Ankle", "Biceps", "Forearm", "Wrist")
+#bodyfat
+
+#Create categorical variables 
+
+AgeCategory = bodyfat$Age
+AgeCategory[bodyfat$Age >= 21 & bodyfat$Age <= 29] =  "Young Adult"
+AgeCategory[bodyfat$Age >= 30 & bodyfat$Age <= 39] =  "Adult"
+AgeCategory[bodyfat$Age >= 40 & bodyfat$Age <= 59] =  "Middle Age Adult"
+AgeCategory[bodyfat$Age >= 60] =  "Senior"
+bodyfat$Age.Category = AgeCategory
+
+#Re-order columns
+
+bodyfat <- bodyfat[ ,c(2, 6:8, 10:20)]
+```
+
+Due to the fact that we did not have a given categorical variable, we had to make our own as shown above. We decided to divide age into these different categories: 
+
+`Young Adult` - 21 through 29 years old
+
+`Adult` - 30 through 39 years old 
+
+`Middle Age Adult` -40 through 59 years old 
+
+`Senior` 60 years old and above 
+
+##Description of additional data preparation performed: 
+We had to put the data into labeled columns because they were labeled with the letter V, and it would be easier for us to know what we are retrieving from the data if we renamed the columns to the actual names of the respective variables.
+For all of our models, we used `Brozek` as our response variable. Therefore, we had to exclude some variables due to our choice in the response variables. We also excluded other variables due to said reason below. We want to exclude these variables-  `Siri` , `Case Number` , ` Density`,  `FFW`, and `Age`
+We excluded `Siri` because it is another explanatory variable for the percentage of fat in men and we went with `Brozek`. 
+We excluded `Case Number` because it is just a label for the number of participants in the dataset. 
+`Density` was exluded because it is already used in Brozek's equation so it is already accounted for. 
+Since `FFW` is found using Brozek's equation, we excluded it as well. Since we were not given a categorical variable,
+We had to make our own categorical variablewithin `Age`, so we excluded the `Age` category in order to use the new categorical variables we created. 
+
+##Description of process we chose to follow:
+
+## Methods:
+
+### Model 1: Variable Selection
+We started with creating a model that takes account of all the predictor variables.
+
+```{r}
+#Full
+bodyfat_model_full = lm(Brozek ~ ., data=bodyfat)
+```
+$H_0:β_{j_1}=β_{j_2}=β_{j_3}...=0$ where $j$ is each predictor in `bodyfat`
+
+$H_1:$ At least one of $β_j≠0$ where $j$ is each predictor in `bodyfat`
+
+We choose to do a F-statistic test to find which variables were significant to the model with a significant level value α = 0.1. Our p-value for the F-test was < 2.2e-16 which means there is a significant linear relationship between the response and at least one of its predictors. To cut down the model, we can remove any variable that has a single t-test p-value lower than 0.1.
+
+```{r}
+#Remove variables that do not correlate well
+which(summary(bodyfat_model_full)$coef[,4] > 0.1)
+bodyfat_model_reduced = lm(Brozek ~ Neck + Abdomen + Thigh + Forearm + Wrist, data = bodyfat)
+```
+The variables that were removed are Age.Category, Weight, Height, Adip, Chest, Hip, Knee, Ankle, and Biceps. We removed all of age because only one of the three categories had a p-value lower than 0.1. 
+
+```{r}
+anova(bodyfat_model_reduced, bodyfat_model_full)
+summary(bodyfat_model_full)$adj.r.squared
+summary(bodyfat_model_reduced)$adj.r.squared
+```
+
+Based on ANOVA F-test, we get an extremely small p-value so we reject the null hypothesis and prefer the larger full model. Also our adjusted R-squared value for the reduced model decreased compared to the full model.
+
+```{r}
+#residual plots
+plot(bodyfat_model_full, which = 1)
+plot(bodyfat_model_reduced, which = 1)
+```
+
+The Residuals VS Fitted values graph for the full model shows that the red line(a line that represents the data's average residuals at a certain fitted value) somewhat follows the expected value of zero line, except for some of the outliers that pull the red line away. Excluding those outliers, we would say that the full model does fulfill the constant variance assumption for linear regression. On the other hand, the Residuals VS Fitted graph for the reduced model has a red line that is more pulled away from the expected value of zero line. We are not entirely sure if fulfills the constant variance assumption. We are going to test both of these model with the Breuch Pagan test to ensure that the both of the models do fulfill the constant variance assumption.
+
+```{r, message = FALSE, warning = FALSE}
+library(lmtest)
+```
+
+```{r}
+bptest(bodyfat_model_full)
+bptest(bodyfat_model_reduced)
+```
+
+The Breusch-Pagan test for the full model has a pvalue that is higher than a signicance leve of .1. Therefore, we do not reject the null hypothesis, and the full model does fulfill the constant variance assumption.
+The Breusch-Pagan test shows our reduced model rejects the null, and thus violates the Constance Variance assumption.
+
+```{r}
+plot(bodyfat_model_full, which = 2)
+plot(bodyfat_model_reduced, which = 2)
+```
+
+Looking at both qq plots graphs for the full model and the reduced model, we can see that most of the residuals of the data stays along the ideal residual line. Thus, we can assume that both graphs are normal, but we will still test them through the Shapiro-Wilk test to ensure that they are normal.
+
+```{r}
+shapiro.test(resid(bodyfat_model_full))
+shapiro.test(resid(bodyfat_model_reduced))
+```
+Both of the models have a pvalue that is higher than the significance level of .1; thus, the models do not violate the normality assumption for linear regression.
+
+In conclusion, our original full model doesn't violate any assumptions. Based on the ANOVA F-Test, adjusted R-square value and the assumption tests, we would still prefer the original full model over the reduced model. We should look for another approach.
+
+### Model 2: Looking at the Variation Inflation Factor
+
+Our goal is to make a model by choosing a model that DOES NOT have multicollinearity
+
+
+```{r}
+library(car)
+vif(bodyfat_model_full)
+which.min(vif(bodyfat_model_full))
+```
+We determined that the predictor, Age.Category for Young Adult, had the lowest VIF and removed the entire Age.Category because at least one of them was suspect. 
+
+```{r}
+bodyfat_vif= lm(Brozek ~ . - Age.Category , data = bodyfat)
+which.max(vif(bodyfat_vif))
+```
+We also removed the variables with VIFs that were higher than 5 because they suggest multicollinearity. 
+
+```{r}
+bodyfat_vif1= lm(Brozek ~ . - Weight - Age.Category , data = bodyfat)
+vif(bodyfat_vif1)
+which.max(vif(bodyfat_vif1))
+```
+
+```{r}
+bodyfat_vif2= lm(Brozek ~ . - Adip - Weight - Age.Category, data = bodyfat)
+which.max(vif(bodyfat_vif2))
+```
+
+```{r}
+bodyfat_vif3 = lm(Brozek ~ .  -Hip - Adip - Weight - Age.Category , data = bodyfat)
+vif(bodyfat_vif3)
+which.max(vif(bodyfat_vif3))
+```
+
+```{r}
+bodyfat_vif4 = lm(Brozek ~ .  - Abdomen -Hip - Adip - Weight - Age.Category, data = bodyfat)
+vif(bodyfat_vif4)
+which.max(vif(bodyfat_vif4))
+```
+We repeated this process until the remaining predictors in the reduced model were in a safe range. 
+
+Comparing Full model and VIF model:
+
+```{r}
+summary(bodyfat_model_full)$adj.r.squared
+summary(bodyfat_vif4)$adj.r.squared
+```
+Our Adjusted R-Squared value has become much worse. Based on Breusch-Pagan test, the Constance Variance assumption would be violated.
+
+```{r}
+anova(bodyfat_vif4, bodyfat_model_full)
+```
+
+Because the ANOVA test generated a significantly low p-value, the original model (bodyfat_model_full) is the preferred model for predicting percentage of body fat in men. 
+
+
+### Model 3: Stepwise Function
+
+```{r}
+calc_loocv_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+}
+```
+
+
+####Forward, Backward, and Stepwise search:
+We will first perform a Backward search for AIC and BIC
+```{r}
+bodyfat_mod_back_aic = step(bodyfat_model_full, direction = "backward", trace = 0)
+n = length(resid(bodyfat_model_full))
+bodyfat_mod_back_bic = step(bodyfat_model_full, direction = "backward", k = log(n), trace = 0)
+```
+Now we perform a Forward search
+```{r}
+bodyfat_mod_start = lm(Brozek ~ 1, data = bodyfat)
+bodyfat_mod_forw_aic = step(
+  bodyfat_mod_start, 
+  scope = Brozek ~ ., 
+  direction = "forward", trace = 0)
+
+bodyfat_mod_forw_bic = step(
+  bodyfat_mod_start, 
+  scope = Brozek ~ . , 
+  direction = "forward", k = log(n), trace = 0)
+```
+Finally, a Stepwise search
+```{r}
+bodyfat_mod_both_aic = step(
+  bodyfat_model_full, 
+  direction = "both", trace = 0)
+
+bodyfat_mod_both_bic = step(
+  bodyfat_model_full, 
+  direction = "both", k = log(n), trace = 0)
+```
+
+Let's compare their LOOVC RMSE values. We prefer to use Cross Validated RMSE to account for over-fitting so we can assess how well the model works in general, 
+rather than just the observed data.
+
+```{r}
+calc_loocv_rmse(bodyfat_model_full)
+calc_loocv_rmse(bodyfat_mod_back_aic)
+calc_loocv_rmse(bodyfat_mod_back_bic)
+calc_loocv_rmse(bodyfat_mod_forw_aic)
+calc_loocv_rmse(bodyfat_mod_forw_bic)
+calc_loocv_rmse(bodyfat_mod_both_aic)
+calc_loocv_rmse(bodyfat_mod_both_bic)
+```
+
+From here, we would choose AIC with Backward search if we use LOOVC RMSE as our metric. **It performs better than any of the methods we tried earlier.** However, we could do even better by exhaustively searching all possible AIC and BIC models. 
+
+### Model 4: Exhaustive search
+We can now use an exhaustive search approach in order to find the best model by checking every possible model. Since we have a reasonably 
+sized dataset and not a large number of parameters, it is not difficult to check all possible models. Therefore, we will use the `regsubsets()` function in `leaps` R package.
+
+```{r}
+#AIC model
+#install.package("leaps")
+library(leaps) 
+bodyfat_mod_subs = summary(regsubsets(Brozek ~. , data = bodyfat))
+n = length(resid(bodyfat_model_full))
+p = length(coef(bodyfat_model_full))
+bodyfat_mod_subs$which
+bodyfat_mod_AIC = (n * log(bodyfat_mod_subs$rss / n) + 2 * (2:p))
+bodyfat_mod_subs$which[which.min(bodyfat_mod_AIC), ]
+
+#BIC model
+bodyfat_mod_subs$bic
+which.min(bodyfat_mod_subs$bic)
+bodyfat_mod_subs$which[which.min(bodyfat_mod_subs$bic),]
+
+#Best R^2 model
+bodyfat_mod_subs$adjr2
+which.max(bodyfat_mod_subs$adjr2)
+bodyfat_mod_subs$which[which.max(bodyfat_mod_subs$adjr2),]
+
+#Comparing the three models
+which(bodyfat_mod_subs$which[which.min(bodyfat_mod_AIC), ])
+which(bodyfat_mod_subs$which[which.min(bodyfat_mod_subs$bic),])
+which(bodyfat_mod_subs$which[which.max(bodyfat_mod_subs$adjr2),])
+bodyfat_best_AIC = lm(Brozek ~ Age.Category + Weight + Neck + Abdomen + Thigh + Forearm + Wrist, data = bodyfat)
+bodyfat_best_BIC = lm(Brozek ~ Weight + Abdomen + Forearm + Wrist, data = bodyfat)
+bodyfat_best_R2 = lm(Brozek ~ Age.Category + Weight + Neck + Abdomen + Thigh + Forearm + Wrist, data = bodyfat)
+
+length(coef(bodyfat_model_full))
+length(coef(bodyfat_best_AIC))
+length(coef(bodyfat_best_BIC))
+length(coef(bodyfat_best_R2))
+
+summary(bodyfat_model_full)$adj.r.squared
+summary(bodyfat_best_AIC)$adj.r.squared
+summary(bodyfat_best_BIC)$adj.r.squared
+summary(bodyfat_best_R2)$adj.r.squared
+
+calc_loocv_rmse(bodyfat_model_full)
+calc_loocv_rmse(bodyfat_best_AIC)
+calc_loocv_rmse(bodyfat_best_BIC)
+calc_loocv_rmse(bodyfat_best_R2)
+```
+
+In terms of LOOVC RMSE and number of parameters, all 3 new models are better. However, AIC and $R^2$ models both have the same model, have better adjusted R-Square than full model and they have better LOOVC RMSE than BIC. 
+
+###Model 5: Accounting for Higher Order Terms
+
+We now need to account for any higher order terms. We can use `pairs()` to check for any quadratic relationship with the response. 
+We will also square all the relevant variables to create a large interaction model.
+
+```{r}
+bodyFatCleaned = bodyfat
+bodyFatCleaned$Age.Category = NULL
+bodyFatCleaned$`Case Number` = NULL
+bodyFatCleaned$Siri = NULL
+bodyFatCleaned$Density = NULL
+bodyFatCleaned$FFW = NULL
+#Check for quadratic/ relationships
+pairs(bodyFatCleaned, col = "dodgerblue")
+```
+
+There seems to be no qudratic relationship between the response and any of the relevant predictors. 
+Now let's construct a full two-order interaction model with all the possible relevant variables. We will use both AIC and BIC. 
+```{r}
+bodyfat_bigFull_mod = lm(
+  Brozek ~ (.) ^ 2, 
+  data = bodyfat)
+
+bodyfat_mod_back_intFull_aic = step(bodyfat_bigFull_mod, direction = "backward", trace = 0)
+n = length(resid(bodyfat_bigFull_mod))
+bodyfat_mod_back_intFull_bic = step(bodyfat_bigFull_mod, direction = "backward", 
+                            k = log(n), trace = 0)
+
+length(coef(bodyfat_bigFull_mod))
+length(coef(bodyfat_mod_back_intFull_aic))
+length(coef(bodyfat_mod_back_intFull_bic))
+
+calc_loocv_rmse(bodyfat_bigFull_mod)
+calc_loocv_rmse(bodyfat_mod_back_intFull_aic)
+calc_loocv_rmse(bodyfat_mod_back_intFull_bic)
+```
+
+Here we see that the new interaction model achieves lower LOOVC RMSE value than our previous non-interaction model from our exhaustive search. The BIC model gives us a LOOVC RMSE value of 3.96, with only 11 parameters. However, we could get better results. Let's see the summary of our full BIC interaction model to see if we can cut out any parameters that have very high p-values. 
+
+```{r}
+summary(bodyfat_mod_back_intFull_bic)
+reduced_interaction_BIC = lm(Brozek ~ Weight + Adip  + Chest + Thigh + Wrist + Neck:Abdomen + Neck:Thigh + Chest:Abdomen, data = bodyfat)
+length(coef(reduced_interaction_BIC))
+calc_loocv_rmse(reduced_interaction_BIC)
+```
+After cutting out Neck and Abdomen from the model, we notice an improved LOOVC RMSE and fewer paramters. However, we can further improve our results by creating a new interaction model using the variables we found from our **best AIC model** and squaring them. 
+
+```{r}
+bodyfat_big_mod = lm(
+  Brozek ~ (Age.Category + Weight + Neck + Abdomen + Thigh + Forearm + Wrist) ^ 2, 
+  data = bodyfat)
+
+bodyfat_mod_back_int_aic = step(bodyfat_big_mod, direction = "backward", trace = 0)
+n = length(resid(bodyfat_big_mod))
+bodyfat_mod_back_int_bic = step(bodyfat_big_mod, direction = "backward", 
+                            k = log(n), trace = 0)
+
+length(coef(bodyfat_big_mod))
+length(coef(bodyfat_mod_back_int_aic))
+length(coef(bodyfat_mod_back_int_bic))
+
+calc_loocv_rmse(bodyfat_big_mod)
+calc_loocv_rmse(bodyfat_mod_back_int_aic)
+calc_loocv_rmse(bodyfat_mod_back_int_bic)
+```
+The new interaction model for AIC has better LOOVC RMSE of 3.841 than our full interaction model, but it's bigger than our full interaction model with 22 parameters. We can reduce the model bit further by taking out Age.Category:Wrist parameter since they have rather high p-values.
+
+```{r}
+summary(bodyfat_mod_back_aic)
+bodyfat_final_mod = lm(Brozek ~ Age.Category + Age.Category:Thigh + Weight + Neck + Abdomen + Forearm  + Weight:Abdomen + Weight:Thigh + Weight:Wrist + Neck:Abdomen + Abdomen:Thigh + Forearm:Wrist, data =bodyfat)
+length(coef(bodyfat_final_mod))
+calc_loocv_rmse(bodyfat_final_mod)
+```
+After taking out Age.Category:Wrist, we have a smaller model with 18 parameters, and an even smaller LOOVC RMSE value of 3.836. 
+
+## Checking for assumptions
+```{r}
+plot(bodyfat_final_mod, which = 1:2)
+bptest(bodyfat_final_mod)
+shapiro.test(resid(bodyfat_final_mod))
+```
+
+Breusch-Pagan Test does not reject, so constant variance assumption hasn't been violated. The Shapiro-Wilk test does not reject null either, so normality assumption hasn't been violated. 
+ 
+**(e)** Results: 
+Final model:
+
+```{r}
+bodyfat_final_mod = lm(Brozek ~ Age.Category + Age.Category:Thigh + Weight + Neck + Abdomen + Forearm  + Weight:Abdomen + Weight:Thigh + Weight:Wrist + Neck:Abdomen + Abdomen:Thigh + Forearm:Wrist, data =bodyfat)
+```
+
+Based on our analysis, we determined that model `bodyfat_final_mod` was the best model to use to predict the Percentage of Body Fat in men because it gave us the best LOOVC RMSE value, a reasonable number of parameters, and it didn't violate any normality or constant variance assumptions. We came to this model after trying numerous different methods. The most straightforward way of arriving at this model is by by finding the best AIC through exhaustive backwards search, then by using those variables in a two-order interaction model to find a new model that further improved the best of fit. We can then perform variable selection by t-test to further improve the model. Overall, our final model had shown a big improvement over our original full model in prediction and explanation. 
+
+Here is the list of some of the major models we used with their adjusted R square values from oldest to recent:
+```{r}
+summary(bodyfat_model_full)$adj.r.squared
+summary(bodyfat_model_reduced)$adj.r.squared
+summary(bodyfat_vif)$adj.r.squared
+summary(bodyfat_best_AIC)$adj.r.squared
+summary(reduced_interaction_BIC)$adj.r.squared
+summary(bodyfat_final_mod)$adj.r.squared
+```
+LOOVC RMSE from oldest to recent:
+```{r}
+calc_loocv_rmse(bodyfat_model_full)
+calc_loocv_rmse(bodyfat_model_reduced)
+calc_loocv_rmse(bodyfat_vif)
+calc_loocv_rmse(bodyfat_best_AIC)
+calc_loocv_rmse(reduced_interaction_BIC)
+calc_loocv_rmse(bodyfat_final_mod)
+
+anova(bodyfat_final_mod, bodyfat_model_full)
+```
+
+In addition, our final model has better constance variance and normality than our original full model. 
+```{r}
+plot(bodyfat_model_full, which = 1:2)
+plot(bodyfat_final_mod, which = 1:2)
+```
+
+
+
+
+
+
